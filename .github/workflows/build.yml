@@ -61,7 +61,7 @@ jobs:
       run: |
         cp -r ${{ github.workspace }}/libs ${{ github.workspace }}/V2rayNG/app
 
-    # ===== fork 仓库必须的步骤 =====
+    # ===== fork 后必须恢复的步骤 =====
     - name: Fetch AndroidLibXrayLite tag
       run: |
         pushd AndroidLibXrayLite
@@ -121,9 +121,10 @@ jobs:
         chmod 755 gradlew
         ./gradlew assembleDebug
 
-    - name: Upload Debug APKs (all flavors)
+    # ===== 修改上传部分 =====
+    - name: Upload all APKs
       uses: actions/upload-artifact@v4.6.2
       if: ${{ success() }}
       with:
-        name: debug-apks
-        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/*Debug/*.apk
+        name: all-apks
+        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/**/*.apk
