@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        required: false
+        required: true
         type: string
   push:
     branches:
@@ -30,9 +30,7 @@ jobs:
 
     - name: Install NDK
       run: |
-        echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-          --channel=0 \
-          --install "ndk;28.2.13676358"
+        echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --channel=0 --install "ndk;28.2.13676358"
         echo "NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> $GITHUB_ENV
         sed -i '10i\
         \
@@ -61,7 +59,7 @@ jobs:
       run: |
         cp -r ${{ github.workspace }}/libs ${{ github.workspace }}/V2rayNG/app
 
-    # ===== fork 后必须恢复的步骤 =====
+    # ===== fork 后必需步骤: libv2ray =====
     - name: Fetch AndroidLibXrayLite tag
       run: |
         pushd AndroidLibXrayLite
@@ -121,10 +119,11 @@ jobs:
         chmod 755 gradlew
         ./gradlew assembleDebug
 
-    # ===== 修改上传部分 =====
-    - name: Upload all APKs
-      uses: actions/upload-artifact@v4.6.2
-      if: ${{ success() }}
+    - name: Upload APK to GitHub Release
+      if: ${{ github.event.inputs.release_tag != '' }}
+      uses: svenstaro/upload-release-action@v2
       with:
-        name: all-apks
-        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/**/*.apk
+        tag: ${{ github.event.inputs.release_tag }}
+        file: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/**/*.apk
+        file_glob: true
+        prerelease: true
