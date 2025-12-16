@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        required: true
+        required: false
         type: string
   push:
     branches:
@@ -33,7 +33,6 @@ jobs:
         echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --channel=0 --install "ndk;28.2.13676358"
         echo "NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> $GITHUB_ENV
         sed -i '10i\
-        \
             ndkVersion = "28.2.13676358"' ${{ github.workspace }}/V2rayNG/app/build.gradle.kts
 
     - name: Restore cached libtun2socks
@@ -112,18 +111,22 @@ jobs:
         distribution: 'temurin'
         java-version: '21'
 
-    - name: Build APK (Debug)
+    # === 构建所有 Debug APKs ===
+    - name: Build all Debug APKs
       run: |
         cd ${{ github.workspace }}/V2rayNG
         echo "sdk.dir=${ANDROID_HOME}" > local.properties
         chmod 755 gradlew
         ./gradlew assembleDebug
 
-    - name: Upload APK to GitHub Release
-      if: ${{ github.event.inputs.release_tag != '' }}
-      uses: svenstaro/upload-release-action@v2
+    # === 列出生成的 APK 文件，方便确认路径 ===
+    - name: List generated APKs
+      run: |
+        find ${{ github.workspace }}/V2rayNG/app/build/outputs/apk -name "*.apk"
+
+    # === 上传所有 Debug APKs 到 Artifact ===
+    - name: Upload all Debug APKs
+      uses: actions/upload-artifact@v4
       with:
-        tag: ${{ github.event.inputs.release_tag }}
-        file: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/**/*.apk
-        file_glob: true
-        prerelease: true
+        name: debug-apks
+        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/**/*.apk
