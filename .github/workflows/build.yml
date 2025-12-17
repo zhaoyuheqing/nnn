@@ -15,14 +15,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1️⃣ 检出代码
     - name: Checkout code
       uses: actions/checkout@v5
       with:
         submodules: 'recursive'
         fetch-depth: '0'
 
-    # 2️⃣ 安装 Android SDK
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3.2.0
       with:
@@ -30,7 +28,6 @@ jobs:
         cmdline-tools-version: '12266719'
         packages: 'platforms;android-35 build-tools;35.0.0 platform-tools'
 
-    # 3️⃣ 安装 NDK
     - name: Install NDK
       run: |
         echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --channel=0 --install "ndk;28.2.13676358"
@@ -38,7 +35,6 @@ jobs:
         sed -i '10i\
             ndkVersion = "28.2.13676358"' ${{ github.workspace }}/V2rayNG/app/build.gradle.kts
 
-    # 4️⃣ 构建 libtun2socks
     - name: Restore cached libtun2socks
       id: cache-libtun2socks-restore
       uses: actions/cache/restore@v4
@@ -50,83 +46,29 @@ jobs:
       if: steps.cache-libtun2socks-restore.outputs.cache-hit != 'true'
       run: bash compile-tun2socks.sh && bash compile-hevtun.sh
 
-    - name: Save libtun2socks
-      if: steps.cache-libtun2socks-restore.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v4
-      with:
-        path: ${{ github.workspace }}/libs
-        key: libtun2socks-${{ runner.os }}-${{ env.NDK_HOME }}-${{ hashFiles('compile-tun2socks.sh') }}-${{ hashFiles('compile-hevtun.sh') }}
-
     - name: Copy libtun2socks
       run: cp -r ${{ github.workspace }}/libs ${{ github.workspace }}/V2rayNG/app
-
-    # 5️⃣ 下载 libv2ray
-    - name: Fetch AndroidLibXrayLite tag
-      run: |
-        pushd AndroidLibXrayLite
-        CURRENT_TAG=$(git describe --tags --abbrev=0)
-        echo "CURRENT_TAG=$CURRENT_TAG" >> $GITHUB_ENV
-        popd
 
     - name: Download libv2ray
       uses: robinraju/release-downloader@v1.12
       with:
         repository: 2dust/AndroidLibXrayLite
-        tag: ${{ env.CURRENT_TAG }}
+        tag: latest
         fileName: "libv2ray.aar"
         out-file-path: V2rayNG/app/libs
 
-    # 6️⃣ 构建 libhysteria2
-    - name: Restore cached libhysteria2
-      id: cache-libhysteria2-restore
-      uses: actions/cache/restore@v4
-      with:
-        path: ${{ github.workspace }}/hysteria/libs
-        key: libhysteria2-${{ runner.os }}-${{ env.NDK_HOME }}-${{ hashFiles('libhysteria2.sh') }}
-
-    - name: Setup Golang
-      if: steps.cache-libhysteria2-restore.outputs.cache-hit != 'true'
-      uses: actions/setup-go@v5.4.0
-      with:
-        go-version-file: 'AndroidLibXrayLite/go.mod'
-        cache: false
-
-    - name: Build libhysteria2
-      if: steps.cache-libhysteria2-restore.outputs.cache-hit != 'true'
-      run: bash libhysteria2.sh
-
-    - name: Save libhysteria2
-      if: steps.cache-libhysteria2-restore.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v4
-      with:
-        path: ${{ github.workspace }}/hysteria/libs
-        key: libhysteria2-${{ runner.os }}-${{ env.NDK_HOME }}-${{ hashFiles('libhysteria2.sh') }}
-
-    - name: Copy libhysteria2
-      run: cp -r ${{ github.workspace }}/hysteria/libs ${{ github.workspace }}/V2rayNG/app
-
-    # 7️⃣ Setup Java
-    - name: Setup Java
-      uses: actions/setup-java@v4.7.0
-      with:
-        distribution: 'temurin'
-        java-version: '21'
-
-    # 8️⃣ 构建单个 APK（Playstore Debug + arm64）
-    - name: Build Playstore Debug APK (arm64)
+    - name: Build Playstore Release APK (arm64)
       run: |
         cd ${{ github.workspace }}/V2rayNG
         echo "sdk.dir=${ANDROID_HOME}" > local.properties
         chmod 755 gradlew
-        ./gradlew assemblePlaystoreDebug -PABI_FILTERS=arm64-v8a
+        ./gradlew assemblePlaystoreRelease -PABI_FILTERS=arm64-v8a
 
-    # 9️⃣ 列出生成的 APK，方便调试
-    - name: List generated APK
-      run: ls -lh V2rayNG/app/build/outputs/apk/playstore/debug/
+    - name: List APK
+      run: ls -lh V2rayNG/app/build/outputs/apk/playstore/release/
 
-    # 🔟 上传 APK
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: v2rayng-playstore-arm64
-        path: V2rayNG/app/build/outputs/apk/playstore/debug/*.apk
+        path: V2rayNG/app/build/outputs/apk/playstore/release/*.apk
