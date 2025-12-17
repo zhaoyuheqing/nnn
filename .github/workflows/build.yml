@@ -46,7 +46,7 @@ jobs:
       if: steps.cache-libtun2socks-restore.outputs.cache-hit != 'true'
       run: |
         bash compile-tun2socks.sh && bash compile-hevtun.sh
-    
+
     - name: Save libtun2socks
       if: steps.cache-libtun2socks-restore.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
@@ -58,7 +58,6 @@ jobs:
       run: |
         cp -r ${{ github.workspace }}/libs ${{ github.workspace }}/V2rayNG/app
 
-    # ===== fork 后必需步骤: libv2ray =====
     - name: Fetch AndroidLibXrayLite tag
       run: |
         pushd AndroidLibXrayLite
@@ -73,7 +72,6 @@ jobs:
         tag: ${{ env.CURRENT_TAG }}
         fileName: "libv2ray.aar"
         out-file-path: V2rayNG/app/libs
-    # =================================================
 
     - name: Restore cached libhysteria2
       id: cache-libhysteria2-restore
@@ -111,22 +109,17 @@ jobs:
         distribution: 'temurin'
         java-version: '21'
 
-    # === 构建所有 Debug APKs ===
-    - name: Build all Debug APKs
+    # ✅ 只构建 1 个 APK（playstore + arm64）
+    - name: Build single Debug APK
       run: |
         cd ${{ github.workspace }}/V2rayNG
         echo "sdk.dir=${ANDROID_HOME}" > local.properties
         chmod 755 gradlew
-        ./gradlew assembleDebug
+        ./gradlew assemblePlaystoreDebug -PABI_FILTERS=arm64-v8a
 
-    # === 列出生成的 APK 文件，方便确认路径 ===
-    - name: List generated APKs
-      run: |
-        find ${{ github.workspace }}/V2rayNG/app/build/outputs/apk -name "*.apk"
-
-    # === 上传所有 Debug APKs 到 Artifact ===
-    - name: Upload all Debug APKs
+    # ✅ 只上传这个 APK
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: debug-apks
-        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/**/*.apk
+        name: v2rayng-debug-arm64
+        path: V2rayNG/app/build/outputs/apk/playstore/debug/*arm64-v8a*.apk
