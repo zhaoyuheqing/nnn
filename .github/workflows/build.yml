@@ -35,22 +35,99 @@ jobs:
         sed -i '10i\
             ndkVersion = "28.2.13676358"' ${{ github.workspace }}/V2rayNG/app/build.gradle.kts
 
-    - name: Build Playstore Debug APK (arm64 only)
+    # ===== libtun2socks =====
+    - name: Restore cached libtun2socks
+      id: cache-libtun2socks-restore
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ github.workspace }}/libs
+        key: libtun2socks-${{ runner.os }}-${{ env.NDK_HOME }}-${{ hashFiles('compile-tun2socks.sh') }}-${{ hashFiles('compile-hevtun.sh') }}
+
+    - name: Build libtun2socks
+      if: steps.cache-libtun2socks-restore.outputs.cache-hit != 'true'
+      run: |
+        bash compile-tun2socks.sh && bash compile-hevtun.sh
+
+    - name: Save libtun2socks
+      if: steps.cache-libtun2socks-restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ github.workspace }}/libs
+        key: libtun2socks-${{ runner.os }}-${{ env.NDK_HOME }}-${{ hashFiles('compile-tun2socks.sh') }}-${{ hashFiles('compile-hevtun.sh') }}
+
+    - name: Copy libtun2socks
+      run: cp -r ${{ github.workspace }}/libs ${{ github.workspace }}/V2rayNG/app
+
+    # ===== libv2ray =====
+    - name: Fetch AndroidLibXrayLite tag
+      run: |
+        pushd AndroidLibXrayLite
+        CURRENT_TAG=$(git describe --tags --abbrev=0)
+        echo "CURRENT_TAG=$CURRENT_TAG" >> $GITHUB_ENV
+        popd
+
+    - name: Download libv2ray
+      uses: robinraju/release-downloader@v1.12
+      with:
+        repository: 2dust/AndroidLibXrayLite
+        tag: ${{ env.CURRENT_TAG }}
+        fileName: "libv2ray.aar"
+        out-file-path: V2rayNG/app/libs
+
+    - name: Verify libv2ray exists
+      run: ls -lh V2rayNG/app/libs
+
+    # ===== libhysteria2 =====
+    - name: Restore cached libhysteria2
+      id: cache-libhysteria2-restore
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ github.workspace }}/hysteria/libs
+        key: libhysteria2-${{ runner.os }}-${{ env.NDK_HOME }}-${{ hashFiles('libhysteria2.sh') }}
+
+    - name: Setup Golang
+      if: steps.cache-libhysteria2-restore.outputs.cache-hit != 'true'
+      uses: actions/setup-go@v5.4.0
+      with:
+        go-version-file: 'AndroidLibXrayLite/go.mod'
+        cache: false
+
+    - name: Build libhysteria2
+      if: steps.cache-libhysteria2-restore.outputs.cache-hit != 'true'
+      run: bash libhysteria2.sh
+
+    - name: Save libhysteria2
+      if: steps.cache-libhysteria2-restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ github.workspace }}/hysteria/libs
+        key: libhysteria2-${{ runner.os }}-${{ env.NDK_HOME }}-${{ hashFiles('libhysteria2.sh') }}
+
+    - name: Copy libhysteria2
+      run: cp -r ${{ github.workspace }}/hysteria/libs ${{ github.workspace }}/V2rayNG/app
+
+    # ===== Setup Java =====
+    - name: Setup Java
+      uses: actions/setup-java@v4.7.0
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+
+    # ===== Build single APK =====
+    - name: Build Playstore Debug APK (arm64)
       run: |
         cd ${{ github.workspace }}/V2rayNG
         echo "sdk.dir=${ANDROID_HOME}" > local.properties
-        chmod +x gradlew
+        chmod 755 gradlew
         ./gradlew assemblePlaystoreDebug -PABI_FILTERS=arm64-v8a
 
-    - name: Find generated APK
-      id: find_apk
-      run: |
-        APK_PATH=$(find V2rayNG/app/build/outputs/apk/playstore/debug -name "*arm64-v8a*.apk" | head -n 1)
-        echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
-        echo "Found APK: $APK_PATH"
+    # ===== List APK =====
+    - name: List generated APK
+      run: find ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/playstore/debug -name "*.apk"
 
+    # ===== Upload APK =====
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: v2rayng-debug-arm64
-        path: ${{ env.APK_PATH }}
+        name: v2rayng-playstore-arm64
+        path: V2rayNG/app/build/outputs/apk/playstore/debug/*arm64-v8a*.apk
