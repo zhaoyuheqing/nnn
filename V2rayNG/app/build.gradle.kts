@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.theme.ang"
+    namespace = "com.v2ray.ang"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.theme.ang"
+        applicationId = "com.v2ray.ang"
         minSdk = 21
         targetSdk = 35
         versionCode = 683
@@ -18,7 +18,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // 禁用 splits 生成多个 APK
         splits {
             abi {
                 isEnable = false
@@ -28,11 +27,15 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true        // 启用代码压缩
+            isShrinkResources = true      // 删除未使用资源
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        debug {
+            isMinifyEnabled = false
         }
     }
 
@@ -62,7 +65,6 @@ android {
     }
 
     kotlinOptions {
-        // Gradle 9 兼容写法
         jvmTarget = "17"
     }
 
@@ -75,6 +77,10 @@ android {
         jniLibs {
             useLegacyPackaging = true
         }
+    }
+
+    aaptOptions {
+        cruncherEnabled = true  // 压缩 PNG 图片
     }
 }
 
