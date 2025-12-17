@@ -1,74 +1,129 @@
-name: Build APK
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    id("com.jaredsburrows.license")
+}
 
-on:
-  workflow_dispatch:
-    inputs:
-      release_tag:
-        required: false
-        type: string
-  push:
-    branches:
-      - master
+android {
+    namespace = "com.v2ray.ang"
+    compileSdk = 35
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+    defaultConfig {
+        applicationId = "com.v2ray.ang"
+        minSdk = 21
+        targetSdk = 35
+        versionCode = 683
+        versionName = "1.10.31"
+        multiDexEnabled = true
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v5
-      with:
-        submodules: 'recursive'
-        fetch-depth: '0'
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3.2.0
-      with:
-        log-accepted-android-sdk-licenses: false
-        cmdline-tools-version: '12266719'
-        packages: 'platforms;android-35 build-tools;35.0.0 platform-tools'
+        splits {
+            abi {
+                isEnable = false
+            }
+        }
+    }
 
-    - name: Install NDK
-      run: |
-        echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --channel=0 --install "ndk;28.2.13676358"
-        echo "NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> $GITHUB_ENV
-        sed -i '10i\
-            ndkVersion = "28.2.13676358"' ${{ github.workspace }}/V2rayNG/app/build.gradle.kts
+    buildTypes {
+        release {
+            isMinifyEnabled = true       // 启用 ProGuard
+            isShrinkResources = true     // 删除未使用资源
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+        debug {
+            isMinifyEnabled = false
+        }
+    }
 
-    - name: Restore cached libtun2socks
-      id: cache-libtun2socks-restore
-      uses: actions/cache/restore@v4
-      with:
-        path: ${{ github.workspace }}/libs
-        key: libtun2socks-${{ runner.os }}-${{ env.NDK_HOME }}-${{ hashFiles('compile-tun2socks.sh') }}-${{ hashFiles('compile-hevtun.sh') }}
+    flavorDimensions.add("distribution")
+    productFlavors {
+        create("fdroid") {
+            dimension = "distribution"
+            applicationIdSuffix = ".fdroid"
+            buildConfigField("String", "DISTRIBUTION", "\"F-Droid\"")
+        }
+        create("playstore") {
+            dimension = "distribution"
+            buildConfigField("String", "DISTRIBUTION", "\"Play Store\"")
+        }
+    }
 
-    - name: Build libtun2socks
-      if: steps.cache-libtun2socks-restore.outputs.cache-hit != 'true'
-      run: bash compile-tun2socks.sh && bash compile-hevtun.sh
+    sourceSets {
+        getByName("main") {
+            jniLibs.srcDirs("libs")
+        }
+    }
 
-    - name: Copy libtun2socks
-      run: cp -r ${{ github.workspace }}/libs ${{ github.workspace }}/V2rayNG/app
+    compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 
-    - name: Download libv2ray
-      uses: robinraju/release-downloader@v1.12
-      with:
-        repository: 2dust/AndroidLibXrayLite
-        tag: latest
-        fileName: "libv2ray.aar"
-        out-file-path: V2rayNG/app/libs
+    compilerOptions {
+        kotlinOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
 
-    - name: Build Playstore Release APK (arm64)
-      run: |
-        cd ${{ github.workspace }}/V2rayNG
-        echo "sdk.dir=${ANDROID_HOME}" > local.properties
-        chmod 755 gradlew
-        ./gradlew assemblePlaystoreRelease -PABI_FILTERS=arm64-v8a
+    buildFeatures {
+        viewBinding = true
+        buildConfig = true
+    }
 
-    - name: List APK
-      run: ls -lh V2rayNG/app/build/outputs/apk/playstore/release/
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+}
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: v2rayng-playstore-arm64
-        path: V2rayNG/app/build/outputs/apk/playstore/release/*.apk
+dependencies {
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar", "*.jar"))))
+
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.activity)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.preference.ktx)
+    implementation(libs.recyclerview)
+    implementation(libs.androidx.swiperefreshlayout)
+
+    implementation(libs.material)
+    implementation(libs.toasty)
+    implementation(libs.editorkit)
+    implementation(libs.flexbox)
+
+    implementation(libs.mmkv.static)
+    implementation(libs.gson)
+
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.core)
+
+    implementation(libs.language.base)
+    implementation(libs.language.json)
+
+    implementation(libs.quickie.foss)
+    implementation(libs.core)
+
+    implementation(libs.lifecycle.viewmodel.ktx)
+    implementation(libs.lifecycle.livedata.ktx)
+    implementation(libs.lifecycle.runtime.ktx)
+
+    implementation(libs.work.runtime.ktx)
+    implementation(libs.work.multiprocess)
+
+    implementation(libs.multidex)
+
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
+    testImplementation(libs.org.mockito.mockito.inline)
+    testImplementation(libs.mockito.kotlin)
+
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
+}
