@@ -27,8 +27,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true        // 启用代码压缩
-            isShrinkResources = true      // 删除未使用资源
+            isMinifyEnabled = true       // 启用 ProGuard
+            isShrinkResources = true     // 删除未使用资源
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -64,8 +64,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    compilerOptions {
+        kotlinOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
 
     buildFeatures {
@@ -77,10 +79,6 @@ android {
         jniLibs {
             useLegacyPackaging = true
         }
-    }
-
-    aaptOptions {
-        cruncherEnabled = true  // 压缩 PNG 图片
     }
 }
 
