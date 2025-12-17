@@ -1,37 +1,20 @@
-plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    id("com.jaredsburrows.license")
-}
-
 android {
-    namespace = "com.v2ray.ang"
+    namespace = "com.example.theme"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.v2ray.ang"
+        applicationId = "com.example.theme"
         minSdk = 21
         targetSdk = 35
-        versionCode = 683
-        versionName = "1.10.31"
+        versionCode = 1
+        versionName = "1.0.0"
         multiDexEnabled = true
 
-        val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')
         splits {
             abi {
                 isEnable = true
                 reset()
-                if (abiFilterList != null && abiFilterList.isNotEmpty()) {
-                    include(*abiFilterList.toTypedArray())
-                } else {
-                    include(
-                        "arm64-v8a",
-                        "armeabi-v7a",
-                        "x86_64",
-                        "x86"
-                    )
-                }
-                // ✅ 唯一修改的地方：禁止 universal APK
+                include("arm64-v8a") // ✅ 只生成一个 APK
                 isUniversalApk = false
             }
         }
@@ -78,110 +61,6 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
-    applicationVariants.all {
-        val variant = this
-        val isFdroid = variant.productFlavors.any { it.name == "fdroid" }
-        if (isFdroid) {
-            val versionCodes =
-                mapOf(
-                    "armeabi-v7a" to 2,
-                    "arm64-v8a" to 1,
-                    "x86" to 4,
-                    "x86_64" to 3,
-                    "universal" to 0
-                )
-
-            variant.outputs
-                .map { it as com.android.build.gradle.internal.api.ApkVariantOutputImpl }
-                .forEach { output ->
-                    val abi = output.getFilter("ABI") ?: "universal"
-                    output.outputFileName = "v2rayNG_${variant.versionName}-fdroid_${abi}.apk"
-                    if (versionCodes.containsKey(abi)) {
-                        output.versionCodeOverride =
-                            (100 * variant.versionCode + versionCodes[abi]!!).plus(5000000)
-                    } else {
-                        return@forEach
-                    }
-                }
-        } else {
-            val versionCodes =
-                mapOf(
-                    "armeabi-v7a" to 4,
-                    "arm64-v8a" to 4,
-                    "x86" to 4,
-                    "x86_64" to 4,
-                    "universal" to 4
-                )
-
-            variant.outputs
-                .map { it as com.android.build.gradle.internal.api.ApkVariantOutputImpl }
-                .forEach { output ->
-                    val abi = output.getFilter("ABI") ?: "universal"
-                    output.outputFileName = "v2rayNG_${variant.versionName}_${abi}.apk"
-                    if (versionCodes.containsKey(abi)) {
-                        output.versionCodeOverride =
-                            (1000000 * versionCodes[abi]!!).plus(variant.versionCode)
-                    } else {
-                        return@forEach
-                    }
-                }
-        }
-    }
-
-    buildFeatures {
-        viewBinding = true
-        buildConfig = true
-    }
-
-    packaging {
-        jniLibs {
-            useLegacyPackaging = true
-        }
-    }
-}
-
-dependencies {
-    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar", "*.jar"))))
-
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.androidx.activity)
-    implementation(libs.androidx.constraintlayout)
-    implementation(libs.preference.ktx)
-    implementation(libs.recyclerview)
-    implementation(libs.androidx.swiperefreshlayout)
-
-    implementation(libs.material)
-    implementation(libs.toasty)
-    implementation(libs.editorkit)
-    implementation(libs.flexbox)
-
-    implementation(libs.mmkv.static)
-    implementation(libs.gson)
-
-    implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.kotlinx.coroutines.core)
-
-    implementation(libs.language.base)
-    implementation(libs.language.json)
-
-    implementation(libs.quickie.foss)
-    implementation(libs.core)
-
-    implementation(libs.lifecycle.viewmodel.ktx)
-    implementation(libs.lifecycle.livedata.ktx)
-    implementation(libs.lifecycle.runtime.ktx)
-
-    implementation(libs.work.runtime.ktx)
-    implementation(libs.work.multiprocess)
-
-    implementation(libs.multidex)
-
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    testImplementation(libs.org.mockito.mockito.inline)
-    testImplementation(libs.mockito.kotlin)
-
-    coreLibraryDesugaring(libs.desugar.jdk.libs)
+    // ✅ 移除 applicationVariants.all 中的多 ABI 输出逻辑
+    // 直接使用默认命名即可
 }
