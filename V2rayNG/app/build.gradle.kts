@@ -16,26 +16,36 @@ android {
         versionName = "1.10.31"
         multiDexEnabled = true
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
+        val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')
         splits {
             abi {
-                isEnable = false
+                isEnable = true
+                reset()
+                if (abiFilterList != null && abiFilterList.isNotEmpty()) {
+                    include(*abiFilterList.toTypedArray())
+                } else {
+                    include(
+                        "arm64-v8a",
+                        "armeabi-v7a",
+                        "x86_64",
+                        "x86"
+                    )
+                }
+                // ✅ 唯一修改的地方：禁止 universal APK
+                isUniversalApk = false
             }
         }
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = true       // 启用 ProGuard
-            isShrinkResources = true     // 删除未使用资源
+            isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-        }
-        debug {
-            isMinifyEnabled = false
         }
     }
 
@@ -64,9 +74,57 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    compilerOptions {
-        kotlinOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17.toString()
+    }
+
+    applicationVariants.all {
+        val variant = this
+        val isFdroid = variant.productFlavors.any { it.name == "fdroid" }
+        if (isFdroid) {
+            val versionCodes =
+                mapOf(
+                    "armeabi-v7a" to 2,
+                    "arm64-v8a" to 1,
+                    "x86" to 4,
+                    "x86_64" to 3,
+                    "universal" to 0
+                )
+
+            variant.outputs
+                .map { it as com.android.build.gradle.internal.api.ApkVariantOutputImpl }
+                .forEach { output ->
+                    val abi = output.getFilter("ABI") ?: "universal"
+                    output.outputFileName = "v2rayNG_${variant.versionName}-fdroid_${abi}.apk"
+                    if (versionCodes.containsKey(abi)) {
+                        output.versionCodeOverride =
+                            (100 * variant.versionCode + versionCodes[abi]!!).plus(5000000)
+                    } else {
+                        return@forEach
+                    }
+                }
+        } else {
+            val versionCodes =
+                mapOf(
+                    "armeabi-v7a" to 4,
+                    "arm64-v8a" to 4,
+                    "x86" to 4,
+                    "x86_64" to 4,
+                    "universal" to 4
+                )
+
+            variant.outputs
+                .map { it as com.android.build.gradle.internal.api.ApkVariantOutputImpl }
+                .forEach { output ->
+                    val abi = output.getFilter("ABI") ?: "universal"
+                    output.outputFileName = "v2rayNG_${variant.versionName}_${abi}.apk"
+                    if (versionCodes.containsKey(abi)) {
+                        output.versionCodeOverride =
+                            (1000000 * versionCodes[abi]!!).plus(variant.versionCode)
+                    } else {
+                        return@forEach
+                    }
+                }
         }
     }
 
