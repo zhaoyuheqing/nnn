@@ -15,12 +15,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    # 1️⃣ 检出代码
     - name: Checkout code
       uses: actions/checkout@v5
       with:
         submodules: 'recursive'
         fetch-depth: '0'
 
+    # 2️⃣ 安装 Android SDK
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3.2.0
       with:
@@ -28,6 +30,7 @@ jobs:
         cmdline-tools-version: '12266719'
         packages: 'platforms;android-35 build-tools;35.0.0 platform-tools'
 
+    # 3️⃣ 安装 NDK
     - name: Install NDK
       run: |
         echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --channel=0 --install "ndk;28.2.13676358"
@@ -35,7 +38,7 @@ jobs:
         sed -i '10i\
             ndkVersion = "28.2.13676358"' ${{ github.workspace }}/V2rayNG/app/build.gradle.kts
 
-    # ===== libtun2socks =====
+    # 4️⃣ 构建 libtun2socks
     - name: Restore cached libtun2socks
       id: cache-libtun2socks-restore
       uses: actions/cache/restore@v4
@@ -45,8 +48,7 @@ jobs:
 
     - name: Build libtun2socks
       if: steps.cache-libtun2socks-restore.outputs.cache-hit != 'true'
-      run: |
-        bash compile-tun2socks.sh && bash compile-hevtun.sh
+      run: bash compile-tun2socks.sh && bash compile-hevtun.sh
 
     - name: Save libtun2socks
       if: steps.cache-libtun2socks-restore.outputs.cache-hit != 'true'
@@ -58,7 +60,7 @@ jobs:
     - name: Copy libtun2socks
       run: cp -r ${{ github.workspace }}/libs ${{ github.workspace }}/V2rayNG/app
 
-    # ===== libv2ray =====
+    # 5️⃣ 下载 libv2ray
     - name: Fetch AndroidLibXrayLite tag
       run: |
         pushd AndroidLibXrayLite
@@ -74,10 +76,7 @@ jobs:
         fileName: "libv2ray.aar"
         out-file-path: V2rayNG/app/libs
 
-    - name: Verify libv2ray exists
-      run: ls -lh V2rayNG/app/libs
-
-    # ===== libhysteria2 =====
+    # 6️⃣ 构建 libhysteria2
     - name: Restore cached libhysteria2
       id: cache-libhysteria2-restore
       uses: actions/cache/restore@v4
@@ -106,14 +105,14 @@ jobs:
     - name: Copy libhysteria2
       run: cp -r ${{ github.workspace }}/hysteria/libs ${{ github.workspace }}/V2rayNG/app
 
-    # ===== Setup Java =====
+    # 7️⃣ Setup Java
     - name: Setup Java
       uses: actions/setup-java@v4.7.0
       with:
         distribution: 'temurin'
         java-version: '21'
 
-    # ===== Build single APK =====
+    # 8️⃣ 构建单个 APK（Playstore Debug + arm64）
     - name: Build Playstore Debug APK (arm64)
       run: |
         cd ${{ github.workspace }}/V2rayNG
@@ -121,13 +120,13 @@ jobs:
         chmod 755 gradlew
         ./gradlew assemblePlaystoreDebug -PABI_FILTERS=arm64-v8a
 
-    # ===== List APK =====
+    # 9️⃣ 列出生成的 APK，方便调试
     - name: List generated APK
-      run: find ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/playstore/debug -name "*.apk"
+      run: ls -lh V2rayNG/app/build/outputs/apk/playstore/debug/
 
-    # ===== Upload APK =====
+    # 🔟 上传 APK
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: v2rayng-playstore-arm64
-        path: V2rayNG/app/build/outputs/apk/playstore/debug/*arm64-v8a*.apk
+        path: V2rayNG/app/build/outputs/apk/playstore/debug/*.apk
