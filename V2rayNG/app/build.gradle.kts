@@ -16,14 +16,26 @@ android {
         versionName = "1.10.31"
         multiDexEnabled = true
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
-
-    // ✅ 禁用 ABI 分割，只生成单个 APK
-    splits {
-        abi {
-            isEnable = false
+        val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')
+        splits {
+            abi {
+                isEnable = true
+                reset()
+                if (abiFilterList != null && abiFilterList.isNotEmpty()) {
+                    include(*abiFilterList.toTypedArray())
+                } else {
+                    include(
+                        "arm64-v8a",
+                        "armeabi-v7a",
+                        "x86_64",
+                        "x86"
+                    )
+                }
+                isUniversalApk = false // 只生成单个 APK
+            }
         }
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -61,15 +73,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
-
-    // ✅ 简化输出，构建单个 APK
-    applicationVariants.all {
-        val variant = this
-        variant.outputs.forEach { output ->
-            output.outputFileName = "v2rayNG_${variant.versionName}.apk"
+    // ✅ Kotlin DSL 更新
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(JavaVersion.VERSION_17.toString())
         }
     }
 
