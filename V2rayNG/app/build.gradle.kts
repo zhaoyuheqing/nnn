@@ -16,26 +16,14 @@ android {
         versionName = "1.10.31"
         multiDexEnabled = true
 
-        val abiFilterList = (properties["ABI_FILTERS"] as? String)?.split(';')
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // 禁用 splits 生成多个 APK
         splits {
             abi {
-                isEnable = true
-                reset()
-                if (abiFilterList != null && abiFilterList.isNotEmpty()) {
-                    include(*abiFilterList.toTypedArray())
-                } else {
-                    include(
-                        "arm64-v8a",
-                        "armeabi-v7a",
-                        "x86_64",
-                        "x86"
-                    )
-                }
-                isUniversalApk = false // 只生成单个 APK
+                isEnable = false
             }
         }
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -73,11 +61,9 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    // ✅ Kotlin DSL 更新
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(JavaVersion.VERSION_17.toString())
-        }
+    kotlinOptions {
+        // Gradle 9 兼容写法
+        jvmTarget = "17"
     }
 
     buildFeatures {
